@@ -140,3 +140,35 @@ async def tmdb_search_first(query: str) -> Optional[dict]:
     data = await tmdb_search_movies(query=query, page=1)
     results = data.get("results", [])
     return results[0] if results else None
+
+
+def build_title_to_idx_map(indices: Any) -> Dict[str, int]:
+
+    title_to_idx: Dict[str, int] = {}
+
+    if isinstance(indices, dict):
+        for k, v in indices.items():
+            title_to_idx[_norm_title(k)] = int(v)
+        return title_to_idx
+
+    # pandas Series or similar mapping
+    try:
+        for k, v in indices.items():
+            title_to_idx[_norm_title(k)] = int(v)
+        return title_to_idx
+    except Exception:
+        # last resort: if it's a list-like etc.
+        raise RuntimeError(
+            "indices.pkl must be dict or pandas Series-like (with .items())"
+        )
+
+def get_local_idx_by_title(title: str) -> int:
+    global TITLE_TO_IDX
+    if TITLE_TO_IDX is None:
+        raise HTTPException(status_code=500, detail="TF-IDF index map not initialized")
+    key = _norm_title(title)
+    if key in TITLE_TO_IDX:
+        return int(TITLE_TO_IDX[key])
+    raise HTTPException(
+        status_code=404, detail=f"Title not found in local dataset: '{title}'"
+    )   
